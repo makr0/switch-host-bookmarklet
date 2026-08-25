@@ -8,6 +8,7 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_registerMenuCommand
+// @grant        unsafeWindow
 // @updateURL    https://raw.githubusercontent.com/makr0/switch-host-bookmarklet/main/switch-host.user.js
 // ==/UserScript==
 
@@ -79,6 +80,6 @@
     }, 10);
   };
 
-  window.switchHost = switchHost;
+  unsafeWindow.switchHost = switchHost;
   GM_registerMenuCommand("Switch host", switchHost);
 })();
