@@ -10,6 +10,7 @@
 // @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
 // @updateURL    https://raw.githubusercontent.com/makr0/switch-host-bookmarklet/main/switch-host.user.js
+// @downloadURL    https://raw.githubusercontent.com/makr0/switch-host-bookmarklet/main/switch-host.user.js
 // ==/UserScript==
 
 (() => {
