@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Switch Host
 // @namespace    switch-host
-// @version      1.0.3
+// @version      1.0.4
 // @description  Switches between old and new host names on the current page. Hold Shift to edit the target.
 // @match        *://*/*
 // @noframes
@@ -15,7 +15,6 @@
 
 (() => {
   const STORAGE_KEY = "hostPairs";
-  let shiftHeld = false;
 
   const stripProtocol = host => {
     let h = host || "";
@@ -38,10 +37,17 @@
     }
   } catch (e) {}
 
-  document.addEventListener("keydown", e => { if (e.key === "Shift") shiftHeld = true; });
-  document.addEventListener("keyup", e => { if (e.key === "Shift") shiftHeld = false; });
-
   const switchHost = () => {
+    let shiftHeld = false;
+    const onKeyDown = e => { if (e.key === "Shift") shiftHeld = true; };
+    document.addEventListener("keydown", onKeyDown);
+    setTimeout(() => {
+      document.removeEventListener("keydown", onKeyDown);
+      doSwitch(shiftHeld);
+    }, 250);
+  };
+
+  const doSwitch = (shiftHeld) => {
     const currentHost = window.location.host;
     const forward = hostPairs.find(pair => pair.from === currentHost);
     const reverse = forward || hostPairs.find(pair => pair.to === currentHost);
