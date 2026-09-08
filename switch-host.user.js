@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Switch Host
 // @namespace    switch-host
-// @version      1.0.1
-// @description  Switches between old and new host names on the current page
-// @match        *
+// @version      1.0.2
+// @description  Switches between old and new host names on the current page. Hold Shift to edit the target.
+// @match        https://*/*
 // @noframes
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -15,6 +15,7 @@
 
 (() => {
   const STORAGE_KEY = "hostPairs";
+  let shiftHeld = false;
 
   const stripProtocol = host => {
     let h = host || "";
@@ -36,6 +37,9 @@
         .filter(pair => pair.from && pair.to);
     }
   } catch (e) {}
+
+  document.addEventListener("keydown", e => { if (e.key === "Shift") shiftHeld = true; });
+  document.addEventListener("keyup", e => { if (e.key === "Shift") shiftHeld = false; });
 
   const switchHost = () => {
     const currentHost = window.location.host;
@@ -67,18 +71,46 @@
       transform: "translate(-50%, -50%)",
       backgroundColor: "#333",
       color: "white",
-      padding: "30px",
+      padding: shiftHeld ? "20px" : "30px",
       borderRadius: "20px",
-      zIndex: "5000"
+      zIndex: "5000",
+      display: "flex",
+      flexDirection: "column",
+      gap: shiftHeld ? "15px" : "0",
+      alignItems: "center"
     });
-    overlay.innerHTML = `Schalte um zu <b>${target}</b> ...`;
-    document.body.appendChild(overlay);
 
-    setTimeout(() => {
-      window.location.href =
-        window.location.protocol + "//" + target +
-        window.location.pathname + window.location.search + window.location.hash;
-    }, 10);
+    if (shiftHeld) {
+      overlay.innerHTML = `
+        <div>Hold umzuschalten zu <b>${target}</b></div>
+        <input type="text" value="${target}" style="padding:8px;border-radius:5px;border:none;width:200px;" onfocus="this.select()"/>
+        <div style="display:flex;gap:10px;margin-top:10px;">
+          <button style="padding:8px 16px;background:#4CAF50;color:white;border:none;border-radius:5px;cursor:pointer;">Umstellen</button>
+          <button style="padding:8px 16px;background:#f44336;color:white;border:none;border-radius:5px;cursor:pointer;">Abbrechen</button>
+        </div>
+      `;
+      const input = overlay.querySelector("input");
+      const confirmBtn = overlay.querySelectorAll("button")[0];
+      const cancelBtn = overlay.querySelectorAll("button")[1];
+      confirmBtn.addEventListener("click", () => {
+        const newTarget = stripProtocol(input.value.trim().split("/")[0].split("?")[0].split("#")[0]);
+        if (!newTarget) return;
+        window.location.href =
+          window.location.protocol + "//" + newTarget +
+          window.location.pathname + window.location.search + window.location.hash;
+      });
+      cancelBtn.addEventListener("click", () => { document.body.removeChild(overlay); });
+      overlay.querySelector("input").focus();
+    } else {
+      overlay.innerHTML = `Schalte um zu <b>${target}</b> ...`;
+      setTimeout(() => {
+        window.location.href =
+          window.location.protocol + "//" + target +
+          window.location.pathname + window.location.search + window.location.hash;
+      }, 10);
+    }
+
+    document.body.appendChild(overlay);
   };
 
   unsafeWindow.switchHost = switchHost;
