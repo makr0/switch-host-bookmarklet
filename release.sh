@@ -42,9 +42,8 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   fi
 done < "$userscript" > "$tmp_file"
 
-mv "$tmp_file" "$userscript"
-trap - EXIT
-
+git -C "$repo_root" add "$userscript"
+git -C "$repo_root" commit -m "Release v${new_version}"
 git -C "$repo_root" tag "v${new_version}"
 
 printf 'Released v%s\n' "$new_version"
