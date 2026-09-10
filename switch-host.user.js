@@ -153,7 +153,9 @@
           window.location.pathname + window.location.search + window.location.hash;
       });
       cancelBtn.addEventListener("click", () => { document.body.removeChild(overlay); });
-      overlay.querySelector("input").focus();
+      input.addEventListener("keydown", e => {
+        if (e.key === "Enter") confirmBtn.click();
+      });
     } else {
       overlay.innerHTML = `Schalte um zu <b>${target}</b> ...`;
       setTimeout(() => {
@@ -164,6 +166,9 @@
     }
 
     document.body.appendChild(overlay);
+    if (shiftHeld) {
+      overlay.querySelector("input").focus();
+    }
   };
 
   unsafeWindow.switchHost = switchHost;
