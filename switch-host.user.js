@@ -142,7 +142,7 @@
       const confirmBtn = overlay.querySelectorAll("button")[0];
       const cancelBtn = overlay.querySelectorAll("button")[1];
       confirmBtn.addEventListener("click", () => {
-        const newTarget = stripProtocol(input.value.trim().split("/")[0].split("?")[0].split("#")[0]);
+        const newTarget = stripProtocol(input.value.trim()).split("/")[0].split("?")[0].split("#")[0];
         if (!newTarget) return;
         window.location.href =
           window.location.protocol + "//" + newTarget +
