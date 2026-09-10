@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Switch Host
 // @namespace    switch-host
-// @version      1.0.4
+// @version      1.0.5
 // @description  Switches between old and new host names on the current page. Hold Shift to edit the target.
 // @match        *://*/*
 // @noframes
@@ -38,13 +38,56 @@
   } catch (e) {}
 
   const switchHost = () => {
-    let shiftHeld = false;
-    const onKeyDown = e => { if (e.key === "Shift") shiftHeld = true; };
-    document.addEventListener("keydown", onKeyDown);
-    setTimeout(() => {
+    let shiftHeld = window.event && window.event.shiftKey;
+
+    if (shiftHeld) {
+      doSwitch(true);
+      return;
+    }
+
+    let finished = false;
+    let waiting = null;
+
+    const finish = () => {
+      if (finished) return;
+      finished = true;
       document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("keyup", onKeyUp);
+      if (waiting) waiting.remove();
       doSwitch(shiftHeld);
-    }, 250);
+    };
+
+    const onKeyDown = e => {
+      if (e.key === "Shift" || e.code === "ShiftLeft" || e.code === "ShiftRight") {
+        shiftHeld = true;
+        finish();
+      }
+    };
+
+    const onKeyUp = e => {
+      if (e.key === "Shift" || e.code === "ShiftLeft" || e.code === "ShiftRight") {
+        shiftHeld = false;
+      }
+    };
+
+    waiting = document.createElement("div");
+    Object.assign(waiting.style, {
+      position: "fixed",
+      top: "50%",
+      left: "50%",
+      transform: "translate(-50%, -50%)",
+      backgroundColor: "#333",
+      color: "white",
+      padding: "20px 30px",
+      borderRadius: "20px",
+      zIndex: "5000"
+    });
+    waiting.textContent = "waiting for you to press shift";
+    document.body.appendChild(waiting);
+
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keyup", onKeyUp);
+    setTimeout(finish, 500);
   };
 
   const doSwitch = (shiftHeld) => {

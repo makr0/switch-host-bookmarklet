@@ -24,7 +24,7 @@ https://raw.githubusercontent.com/makr0/switch-host-bookmarklet/main/switch-host
 - Right-click on any page → **Tampermonkey** → **Switch host**, or
 - keep a bookmarklet with the body: `javascript:switchHost()`
 
-A short overlay shows the target host before the redirect.
+A short overlay shows the target host before the redirect. Hold **Shift** while triggering to open an editable overlay — edit the target and confirm with the **Umstellen** button, or cancel with **Abbrechen**.
 
 ## Updates
 
