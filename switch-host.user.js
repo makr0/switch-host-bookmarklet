@@ -144,6 +144,10 @@
       confirmBtn.addEventListener("click", () => {
         const newTarget = stripProtocol(input.value.trim()).split("/")[0].split("?")[0].split("#")[0];
         if (!newTarget) return;
+        if (!hostPairs.some(pair => pair.from === currentHost && pair.to === newTarget)) {
+          hostPairs.push({ from: currentHost, to: newTarget });
+        }
+        GM_setValue(STORAGE_KEY, JSON.stringify(hostPairs));
         window.location.href =
           window.location.protocol + "//" + newTarget +
           window.location.pathname + window.location.search + window.location.hash;
