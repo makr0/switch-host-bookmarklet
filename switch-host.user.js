@@ -37,6 +37,55 @@
     }
   } catch (e) {}
 
+  const layoutHosts = hosts => {
+    const adj = {};
+    hosts.forEach(host => { adj[host] = []; });
+    hostPairs.forEach(pair => {
+      if (pair.from !== pair.to) {
+        adj[pair.from].push(pair.to);
+        adj[pair.to].push(pair.from);
+      }
+    });
+    const seen = {};
+    const components = [];
+    hosts.forEach(host => {
+      if (seen[host]) return;
+      const comp = [host];
+      seen[host] = true;
+      const queue = [host];
+      while (queue.length) {
+        adj[queue.shift()].forEach(next => {
+          if (!seen[next]) {
+            seen[next] = true;
+            comp.push(next);
+            queue.push(next);
+          }
+        });
+      }
+      components.push(comp);
+    });
+    const pos = {};
+    const cols = Math.ceil(Math.sqrt(components.length));
+    const rows = Math.ceil(components.length / cols);
+    const cw = Math.min(190, 380 / cols);
+    const ch = Math.min(140, 280 / rows);
+    components.forEach((comp, ci) => {
+      const cx = 200 + (ci % cols - (cols - 1) / 2) * cw;
+      const cy = 150 + (Math.floor(ci / cols) - (rows - 1) / 2) * ch;
+      const nCols = comp.length <= 4 ? 1 : Math.min(3, Math.ceil(Math.sqrt(comp.length)));
+      const nRows = Math.ceil(comp.length / nCols);
+      const dx = Math.min(95, (cw - 20) / Math.max(nCols - 1, 1));
+      const dy = Math.min(50, (ch - 20) / Math.max(nRows - 1, 1));
+      comp.forEach((host, i) => {
+        pos[host] = {
+          x: cx + (i % nCols - (nCols - 1) / 2) * dx,
+          y: cy + (Math.floor(i / nCols) - (nRows - 1) / 2) * dy
+        };
+      });
+    });
+    return pos;
+  };
+
   const renderHostGraph = (container, currentHost, onSelect) => {
     if (!hostPairs.length) {
       container.textContent = "no hosts known yet";
@@ -45,12 +94,7 @@
     }
     const NS = "http://www.w3.org/2000/svg";
     const hosts = [...new Set([currentHost, ...hostPairs.flatMap(pair => [pair.from, pair.to])])];
-    const cx = 200, cy = 150, radius = 110;
-    const pos = {};
-    hosts.forEach((host, i) => {
-      const angle = (i / hosts.length) * Math.PI * 2 - Math.PI / 2;
-      pos[host] = { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) };
-    });
+    const pos = layoutHosts(hosts);
     const svg = document.createElementNS(NS, "svg");
     svg.setAttribute("width", "400");
     svg.setAttribute("height", "300");
@@ -111,7 +155,7 @@
       label.setAttribute("text-anchor", "middle");
       label.setAttribute("font-size", "10");
       label.setAttribute("fill", "#37474F");
-      label.textContent = host.length > 24 ? host.slice(0, 23) + "\u2026" : host;
+      label.textContent = host.length > 14 ? host.slice(0, 13) + "\u2026" : host;
       const title = document.createElementNS(NS, "title");
       title.textContent = host;
       g.appendChild(title);
