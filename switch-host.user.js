@@ -37,59 +37,88 @@
     }
   } catch (e) {}
 
-  let visNetworkPromise = null;
-
-  const loadVisNetwork = () => {
-    if (window.vis && window.vis.Network) return Promise.resolve(window.vis);
-    if (!visNetworkPromise) {
-      visNetworkPromise = new Promise((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = "https://unpkg.com/vis-network@9/standalone/umd/vis-network.min.js";
-        script.onload = () => {
-          if (window.vis && window.vis.Network) resolve(window.vis);
-          else reject(new Error("vis-network not defined"));
-        };
-        script.onerror = () => {
-          visNetworkPromise = null;
-          reject(new Error("failed to load vis-network"));
-        };
-      });
-    }
-    return visNetworkPromise;
-  };
-
   const renderHostGraph = (container, currentHost, onSelect) => {
-    const showPlaceholder = text => {
-      container.textContent = text;
-      Object.assign(container.style, { display: "flex", alignItems: "center", justifyContent: "center", color: "#888" });
-    };
     if (!hostPairs.length) {
-      showPlaceholder("no hosts known yet");
+      container.textContent = "no hosts known yet";
+      Object.assign(container.style, { display: "flex", alignItems: "center", justifyContent: "center", color: "#888" });
       return;
     }
-    loadVisNetwork().then(vis => {
-      const hosts = [...new Set([currentHost, ...hostPairs.flatMap(pair => [pair.from, pair.to])])];
-      const radius = 130;
-      const nodes = hosts.map((host, i) => ({
-        id: host,
-        label: host,
-        x: radius * Math.cos((i / hosts.length) * Math.PI * 2 - Math.PI / 2),
-        y: radius * Math.sin((i / hosts.length) * Math.PI * 2 - Math.PI / 2),
-        shape: "circle",
-        size: host === currentHost ? 14 : 9,
-        color: host === currentHost
-          ? { background: "#4CAF50", border: "#388E3C" }
-          : { background: "#B0BEC5", border: "#78909C" },
-        font: { color: "#37474F", size: 13 }
-      }));
-      const edges = hostPairs
-        .filter(pair => pair.from !== pair.to)
-        .map(pair => ({ from: pair.from, to: pair.to, arrows: "to", color: { color: "#90A4AE" } }));
-      const network = new vis.Network(container, { nodes, edges }, { physics: { enabled: false } });
-      network.on("click", params => {
-        if (params.nodes && params.nodes.length) onSelect(params.nodes[0]);
-      });
-    }).catch(() => showPlaceholder("graph unavailable"));
+    const NS = "http://www.w3.org/2000/svg";
+    const hosts = [...new Set([currentHost, ...hostPairs.flatMap(pair => [pair.from, pair.to])])];
+    const cx = 200, cy = 150, radius = 110;
+    const pos = {};
+    hosts.forEach((host, i) => {
+      const angle = (i / hosts.length) * Math.PI * 2 - Math.PI / 2;
+      pos[host] = { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) };
+    });
+    const svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("width", "400");
+    svg.setAttribute("height", "300");
+    svg.setAttribute("viewBox", "0 0 400 300");
+    const defs = document.createElementNS(NS, "defs");
+    const marker = document.createElementNS(NS, "marker");
+    marker.setAttribute("id", "sh-arrow");
+    marker.setAttribute("viewBox", "0 0 10 10");
+    marker.setAttribute("refX", "8");
+    marker.setAttribute("refY", "5");
+    marker.setAttribute("markerWidth", "6");
+    marker.setAttribute("markerHeight", "6");
+    marker.setAttribute("orient", "auto");
+    const arrow = document.createElementNS(NS, "path");
+    arrow.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+    arrow.setAttribute("fill", "#90A4AE");
+    marker.appendChild(arrow);
+    defs.appendChild(marker);
+    svg.appendChild(defs);
+    const seen = new Set();
+    for (const pair of hostPairs) {
+      if (pair.from === pair.to) continue;
+      const key = pair.from + "\u2192" + pair.to;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const a = pos[pair.from];
+      const b = pos[pair.to];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const len = Math.hypot(dx, dy);
+      if (!len) continue;
+      const ux = dx / len, uy = dy / len;
+      const line = document.createElementNS(NS, "line");
+      line.setAttribute("x1", a.x + 12 * ux);
+      line.setAttribute("y1", a.y + 12 * uy);
+      line.setAttribute("x2", b.x - 16 * ux);
+      line.setAttribute("y2", b.y - 16 * uy);
+      line.setAttribute("stroke", "#90A4AE");
+      line.setAttribute("marker-end", "url(#sh-arrow)");
+      svg.appendChild(line);
+    }
+    hosts.forEach(host => {
+      const p = pos[host];
+      const isCurrent = host === currentHost;
+      const r = isCurrent ? 12 : 8;
+      const g = document.createElementNS(NS, "g");
+      g.style.cursor = "pointer";
+      g.addEventListener("click", () => onSelect(host));
+      const circle = document.createElementNS(NS, "circle");
+      circle.setAttribute("cx", p.x);
+      circle.setAttribute("cy", p.y);
+      circle.setAttribute("r", r);
+      circle.setAttribute("fill", isCurrent ? "#4CAF50" : "#B0BEC5");
+      circle.setAttribute("stroke", isCurrent ? "#388E3C" : "#78909C");
+      g.appendChild(circle);
+      const label = document.createElementNS(NS, "text");
+      label.setAttribute("x", p.x);
+      label.setAttribute("y", p.y + r + 12);
+      label.setAttribute("text-anchor", "middle");
+      label.setAttribute("font-size", "10");
+      label.setAttribute("fill", "#37474F");
+      label.textContent = host.length > 24 ? host.slice(0, 23) + "\u2026" : host;
+      const title = document.createElementNS(NS, "title");
+      title.textContent = host;
+      g.appendChild(title);
+      g.appendChild(label);
+      svg.appendChild(g);
+    });
+    container.replaceChildren(svg);
   };
 
   const switchHost = () => {
