@@ -37,7 +37,7 @@
     }
   } catch (e) {}
 
-  const layoutHosts = hosts => {
+  const layoutHosts = (hosts, w, h) => {
     const adj = {};
     hosts.forEach(host => { adj[host] = []; });
     hostPairs.forEach(pair => {
@@ -67,11 +67,11 @@
     const pos = {};
     const cols = Math.ceil(Math.sqrt(components.length));
     const rows = Math.ceil(components.length / cols);
-    const cw = Math.min(190, 380 / cols);
-    const ch = Math.min(140, 280 / rows);
+    const cw = Math.min(360, (w - 40) / cols);
+    const ch = Math.min(260, (h - 40) / rows);
     components.forEach((comp, ci) => {
-      const cx = 200 + (ci % cols - (cols - 1) / 2) * cw;
-      const cy = 150 + (Math.floor(ci / cols) - (rows - 1) / 2) * ch;
+      const cx = w / 2 + (ci % cols - (cols - 1) / 2) * cw;
+      const cy = h / 2 + (Math.floor(ci / cols) - (rows - 1) / 2) * ch;
       const nCols = comp.length <= 4 ? 1 : Math.min(3, Math.ceil(Math.sqrt(comp.length)));
       const nRows = Math.ceil(comp.length / nCols);
       const dx = Math.min(95, (cw - 20) / Math.max(nCols - 1, 1));
@@ -94,75 +94,82 @@
     }
     const NS = "http://www.w3.org/2000/svg";
     const hosts = [...new Set([currentHost, ...hostPairs.flatMap(pair => [pair.from, pair.to])])];
-    const pos = layoutHosts(hosts);
-    const svg = document.createElementNS(NS, "svg");
-    svg.setAttribute("width", "100%");
-    svg.setAttribute("height", "100%");
-    svg.setAttribute("viewBox", "0 0 400 300");
-    const defs = document.createElementNS(NS, "defs");
-    const marker = document.createElementNS(NS, "marker");
-    marker.setAttribute("id", "sh-arrow");
-    marker.setAttribute("viewBox", "0 0 10 10");
-    marker.setAttribute("refX", "8");
-    marker.setAttribute("refY", "5");
-    marker.setAttribute("markerWidth", "6");
-    marker.setAttribute("markerHeight", "6");
-    marker.setAttribute("orient", "auto");
-    const arrow = document.createElementNS(NS, "path");
-    arrow.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
-    arrow.setAttribute("fill", "#90A4AE");
-    marker.appendChild(arrow);
-    defs.appendChild(marker);
-    svg.appendChild(defs);
-    const seen = new Set();
-    for (const pair of hostPairs) {
-      if (pair.from === pair.to) continue;
-      const key = pair.from + "\u2192" + pair.to;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const a = pos[pair.from];
-      const b = pos[pair.to];
-      const dx = b.x - a.x, dy = b.y - a.y;
-      const len = Math.hypot(dx, dy);
-      if (!len) continue;
-      const ux = dx / len, uy = dy / len;
-      const line = document.createElementNS(NS, "line");
-      line.setAttribute("x1", a.x + 12 * ux);
-      line.setAttribute("y1", a.y + 12 * uy);
-      line.setAttribute("x2", b.x - 16 * ux);
-      line.setAttribute("y2", b.y - 16 * uy);
-      line.setAttribute("stroke", "#90A4AE");
-      line.setAttribute("marker-end", "url(#sh-arrow)");
-      svg.appendChild(line);
-    }
-    hosts.forEach(host => {
-      const p = pos[host];
-      const isCurrent = host === currentHost;
-      const r = isCurrent ? 12 : 8;
-      const g = document.createElementNS(NS, "g");
-      g.style.cursor = "pointer";
-      g.addEventListener("click", () => onSelect(host));
-      const circle = document.createElementNS(NS, "circle");
-      circle.setAttribute("cx", p.x);
-      circle.setAttribute("cy", p.y);
-      circle.setAttribute("r", r);
-      circle.setAttribute("fill", isCurrent ? "#4CAF50" : "#B0BEC5");
-      circle.setAttribute("stroke", isCurrent ? "#388E3C" : "#78909C");
-      g.appendChild(circle);
-      const label = document.createElementNS(NS, "text");
-      label.setAttribute("x", p.x);
-      label.setAttribute("y", p.y + r + 12);
-      label.setAttribute("text-anchor", "middle");
-      label.setAttribute("font-size", "10");
-      label.setAttribute("fill", "#37474F");
-      label.textContent = host.length > 14 ? host.slice(0, 13) + "\u2026" : host;
-      const title = document.createElementNS(NS, "title");
-      title.textContent = host;
-      g.appendChild(title);
-      g.appendChild(label);
-      svg.appendChild(g);
-    });
-    container.replaceChildren(svg);
+
+    const build = () => {
+      const w = Math.max(100, container.clientWidth || 400);
+      const h = Math.max(100, container.clientHeight || 300);
+      const pos = layoutHosts(hosts, w, h);
+      const svg = document.createElementNS(NS, "svg");
+      svg.setAttribute("width", String(w));
+      svg.setAttribute("height", String(h));
+      const defs = document.createElementNS(NS, "defs");
+      const marker = document.createElementNS(NS, "marker");
+      marker.setAttribute("id", "sh-arrow");
+      marker.setAttribute("viewBox", "0 0 10 10");
+      marker.setAttribute("refX", "8");
+      marker.setAttribute("refY", "5");
+      marker.setAttribute("markerWidth", "6");
+      marker.setAttribute("markerHeight", "6");
+      marker.setAttribute("orient", "auto");
+      const arrow = document.createElementNS(NS, "path");
+      arrow.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+      arrow.setAttribute("fill", "#90A4AE");
+      marker.appendChild(arrow);
+      defs.appendChild(marker);
+      svg.appendChild(defs);
+      const seen = new Set();
+      for (const pair of hostPairs) {
+        if (pair.from === pair.to) continue;
+        const key = pair.from + "\u2192" + pair.to;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const a = pos[pair.from];
+        const b = pos[pair.to];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const len = Math.hypot(dx, dy);
+        if (!len) continue;
+        const ux = dx / len, uy = dy / len;
+        const line = document.createElementNS(NS, "line");
+        line.setAttribute("x1", a.x + 12 * ux);
+        line.setAttribute("y1", a.y + 12 * uy);
+        line.setAttribute("x2", b.x - 16 * ux);
+        line.setAttribute("y2", b.y - 16 * uy);
+        line.setAttribute("stroke", "#90A4AE");
+        line.setAttribute("marker-end", "url(#sh-arrow)");
+        svg.appendChild(line);
+      }
+      hosts.forEach(host => {
+        const p = pos[host];
+        const isCurrent = host === currentHost;
+        const r = isCurrent ? 12 : 8;
+        const g = document.createElementNS(NS, "g");
+        g.style.cursor = "pointer";
+        g.addEventListener("click", () => onSelect(host));
+        const circle = document.createElementNS(NS, "circle");
+        circle.setAttribute("cx", p.x);
+        circle.setAttribute("cy", p.y);
+        circle.setAttribute("r", r);
+        circle.setAttribute("fill", isCurrent ? "#4CAF50" : "#B0BEC5");
+        circle.setAttribute("stroke", isCurrent ? "#388E3C" : "#78909C");
+        g.appendChild(circle);
+        const label = document.createElementNS(NS, "text");
+        label.setAttribute("x", p.x);
+        label.setAttribute("y", p.y + r + 12);
+        label.setAttribute("text-anchor", "middle");
+        label.setAttribute("font-size", "10");
+        label.setAttribute("fill", "#37474F");
+        label.textContent = host.length > 14 ? host.slice(0, 13) + "\u2026" : host;
+        const title = document.createElementNS(NS, "title");
+        title.textContent = host;
+        g.appendChild(title);
+        g.appendChild(label);
+        svg.appendChild(g);
+      });
+      container.replaceChildren(svg);
+    };
+
+    build();
+    new ResizeObserver(build).observe(container);
   };
 
   const switchHost = () => {
