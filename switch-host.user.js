@@ -96,8 +96,8 @@
     const hosts = [...new Set([currentHost, ...hostPairs.flatMap(pair => [pair.from, pair.to])])];
     const pos = layoutHosts(hosts);
     const svg = document.createElementNS(NS, "svg");
-    svg.setAttribute("width", "400");
-    svg.setAttribute("height", "300");
+    svg.setAttribute("width", "100%");
+    svg.setAttribute("height", "100%");
     svg.setAttribute("viewBox", "0 0 400 300");
     const defs = document.createElementNS(NS, "defs");
     const marker = document.createElementNS(NS, "marker");
@@ -256,12 +256,15 @@
       gap: shiftHeld ? "15px" : "0",
       alignItems: "center"
     });
+    if (shiftHeld) {
+      Object.assign(overlay.style, { resize: "both", overflow: "hidden", width: "440px", height: "500px", minWidth: "320px", minHeight: "420px" });
+    }
 
     if (shiftHeld) {
       overlay.innerHTML = `
         <div>Hold umzuschalten zu <b>${target}</b></div>
         <input type="text" value="${target}" style="padding:8px;border-radius:5px;border:none;width:200px;"/>
-        <div class="sh-graph" style="width:400px;height:300px;background:#fff;border-radius:5px;"></div>
+        <div class="sh-graph" style="flex:1;width:100%;min-height:250px;background:#fff;border-radius:5px;"></div>
         <div style="display:flex;gap:10px;margin-top:10px;">
           <button style="padding:8px 16px;background:#4CAF50;color:white;border:none;border-radius:5px;cursor:pointer;">Umstellen</button>
           <button style="padding:8px 16px;background:#f44336;color:white;border:none;border-radius:5px;cursor:pointer;">Abbrechen</button>
