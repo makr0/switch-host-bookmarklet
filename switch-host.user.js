@@ -37,6 +37,61 @@
     }
   } catch (e) {}
 
+  let visNetworkPromise = null;
+
+  const loadVisNetwork = () => {
+    if (window.vis && window.vis.Network) return Promise.resolve(window.vis);
+    if (!visNetworkPromise) {
+      visNetworkPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://unpkg.com/vis-network@9/standalone/umd/vis-network.min.js";
+        script.onload = () => {
+          if (window.vis && window.vis.Network) resolve(window.vis);
+          else reject(new Error("vis-network not defined"));
+        };
+        script.onerror = () => {
+          visNetworkPromise = null;
+          reject(new Error("failed to load vis-network"));
+        };
+      });
+    }
+    return visNetworkPromise;
+  };
+
+  const renderHostGraph = (container, currentHost, onSelect) => {
+    const showPlaceholder = text => {
+      container.textContent = text;
+      Object.assign(container.style, { display: "flex", alignItems: "center", justifyContent: "center", color: "#888" });
+    };
+    if (!hostPairs.length) {
+      showPlaceholder("no hosts known yet");
+      return;
+    }
+    loadVisNetwork().then(vis => {
+      const hosts = [...new Set([currentHost, ...hostPairs.flatMap(pair => [pair.from, pair.to])])];
+      const radius = 130;
+      const nodes = hosts.map((host, i) => ({
+        id: host,
+        label: host,
+        x: radius * Math.cos((i / hosts.length) * Math.PI * 2 - Math.PI / 2),
+        y: radius * Math.sin((i / hosts.length) * Math.PI * 2 - Math.PI / 2),
+        shape: "circle",
+        size: host === currentHost ? 14 : 9,
+        color: host === currentHost
+          ? { background: "#4CAF50", border: "#388E3C" }
+          : { background: "#B0BEC5", border: "#78909C" },
+        font: { color: "#37474F", size: 13 }
+      }));
+      const edges = hostPairs
+        .filter(pair => pair.from !== pair.to)
+        .map(pair => ({ from: pair.from, to: pair.to, arrows: "to", color: { color: "#90A4AE" } }));
+      const network = new vis.Network(container, { nodes, edges }, { physics: { enabled: false } });
+      network.on("click", params => {
+        if (params.nodes && params.nodes.length) onSelect(params.nodes[0]);
+      });
+    }).catch(() => showPlaceholder("graph unavailable"));
+  };
+
   const switchHost = () => {
     let shiftHeld = window.event && window.event.shiftKey;
 
@@ -133,6 +188,7 @@
       overlay.innerHTML = `
         <div>Hold umzuschalten zu <b>${target}</b></div>
         <input type="text" value="${target}" style="padding:8px;border-radius:5px;border:none;width:200px;" onfocus="this.select()"/>
+        <div class="sh-graph" style="width:400px;height:300px;background:#fff;border-radius:5px;"></div>
         <div style="display:flex;gap:10px;margin-top:10px;">
           <button style="padding:8px 16px;background:#4CAF50;color:white;border:none;border-radius:5px;cursor:pointer;">Umstellen</button>
           <button style="padding:8px 16px;background:#f44336;color:white;border:none;border-radius:5px;cursor:pointer;">Abbrechen</button>
@@ -167,7 +223,12 @@
 
     document.body.appendChild(overlay);
     if (shiftHeld) {
-      overlay.querySelector("input").focus();
+      const input = overlay.querySelector("input");
+      input.focus();
+      renderHostGraph(overlay.querySelector(".sh-graph"), currentHost, host => {
+        input.value = host;
+        input.focus();
+      });
     }
   };
 
