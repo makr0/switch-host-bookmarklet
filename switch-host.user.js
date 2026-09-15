@@ -187,7 +187,7 @@
     if (shiftHeld) {
       overlay.innerHTML = `
         <div>Hold umzuschalten zu <b>${target}</b></div>
-        <input type="text" value="${target}" style="padding:8px;border-radius:5px;border:none;width:200px;" onfocus="this.select()"/>
+        <input type="text" value="${target}" style="padding:8px;border-radius:5px;border:none;width:200px;"/>
         <div class="sh-graph" style="width:400px;height:300px;background:#fff;border-radius:5px;"></div>
         <div style="display:flex;gap:10px;margin-top:10px;">
           <button style="padding:8px 16px;background:#4CAF50;color:white;border:none;border-radius:5px;cursor:pointer;">Umstellen</button>
@@ -195,6 +195,7 @@
         </div>
       `;
       const input = overlay.querySelector("input");
+      input.addEventListener("focus", () => input.select());
       const confirmBtn = overlay.querySelectorAll("button")[0];
       const cancelBtn = overlay.querySelectorAll("button")[1];
       confirmBtn.addEventListener("click", () => {
