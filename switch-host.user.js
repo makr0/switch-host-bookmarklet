@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Switch Host
 // @namespace    switch-host
-// @version      1.0.7
+// @version      1.0.8
 // @description  Switches between old and new host names on the current page. Hold Shift to edit the target.
 // @match        *://*/*
 // @noframes
