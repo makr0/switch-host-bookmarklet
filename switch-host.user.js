@@ -39,11 +39,11 @@
 
   const layoutHosts = (hosts, w, h) => {
     const adj = {};
-    hosts.forEach(host => { adj[host] = []; });
+    hosts.forEach(host => { adj[host] = new Set(); });
     hostPairs.forEach(pair => {
       if (pair.from !== pair.to) {
-        adj[pair.from].push(pair.to);
-        adj[pair.to].push(pair.from);
+        adj[pair.from].add(pair.to);
+        adj[pair.to].add(pair.from);
       }
     });
     const seen = {};
@@ -72,16 +72,37 @@
     components.forEach((comp, ci) => {
       const cx = w / 2 + (ci % cols - (cols - 1) / 2) * cw;
       const cy = h / 2 + (Math.floor(ci / cols) - (rows - 1) / 2) * ch;
-      const nCols = comp.length <= 4 ? 1 : Math.min(3, Math.ceil(Math.sqrt(comp.length)));
-      const nRows = Math.ceil(comp.length / nCols);
-      const dx = Math.min(95, (cw - 20) / Math.max(nCols - 1, 1));
-      const dy = Math.min(50, (ch - 20) / Math.max(nRows - 1, 1));
-      comp.forEach((host, i) => {
-        pos[host] = {
-          x: cx + (i % nCols - (nCols - 1) / 2) * dx,
-          y: cy + (Math.floor(i / nCols) - (nRows - 1) / 2) * dy
+      let degSum = 0;
+      comp.forEach(h => { degSum += adj[h].size; });
+      const isCircular = comp.length > 2 && degSum / 2 >= comp.length;
+      if (isCircular) {
+        const order = [];
+        const done = {};
+        comp.forEach(h => { done[h] = false; });
+        const dfs = h => {
+          done[h] = true;
+          order.push(h);
+          adj[h].forEach(next => { if (!done[next]) dfs(next); });
         };
-      });
+        dfs(comp[0]);
+        const N = order.length;
+        const R = Math.max(50, Math.min(cw, ch) / 2 - 35);
+        order.forEach((host, i) => {
+          const ang = (i / N) * 2 * Math.PI - Math.PI / 2;
+          pos[host] = { x: cx + R * Math.cos(ang), y: cy + R * Math.sin(ang) };
+        });
+      } else {
+        const nCols = comp.length <= 4 ? 1 : Math.min(3, Math.ceil(Math.sqrt(comp.length)));
+        const nRows = Math.ceil(comp.length / nCols);
+        const dx = Math.min(95, (cw - 20) / Math.max(nCols - 1, 1));
+        const dy = Math.min(50, (ch - 20) / Math.max(nRows - 1, 1));
+        comp.forEach((host, i) => {
+          pos[host] = {
+            x: cx + (i % nCols - (nCols - 1) / 2) * dx,
+            y: cy + (Math.floor(i / nCols) - (nRows - 1) / 2) * dy
+          };
+        });
+      }
     });
     return pos;
   };
@@ -158,7 +179,7 @@
         label.setAttribute("text-anchor", "middle");
         label.setAttribute("font-size", "10");
         label.setAttribute("fill", "#37474F");
-        label.textContent = host.length > 14 ? host.slice(0, 13) + "\u2026" : host;
+        label.textContent = host;
         const title = document.createElementNS(NS, "title");
         title.textContent = host;
         g.appendChild(title);
@@ -250,9 +271,10 @@
     const overlay = document.createElement("div");
     Object.assign(overlay.style, {
       position: "fixed",
-      top: "50%",
-      left: "50%",
-      transform: "translate(-50%, -50%)",
+      top: "5vh",
+      left: "5vw",
+      width: "90vw",
+      height: "90vh",
       backgroundColor: "#333",
       color: "white",
       padding: shiftHeld ? "20px" : "30px",
@@ -264,7 +286,7 @@
       alignItems: "center"
     });
     if (shiftHeld) {
-      Object.assign(overlay.style, { resize: "both", overflow: "hidden", width: "440px", height: "500px", minWidth: "320px", minHeight: "420px" });
+      Object.assign(overlay.style, { resize: "both", overflow: "hidden", minWidth: "320px", minHeight: "420px" });
     }
 
     if (shiftHeld) {
