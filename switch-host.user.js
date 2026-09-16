@@ -37,7 +37,7 @@
     }
   } catch (e) {}
 
-  const layoutHosts = (hosts, w, h) => {
+  const buildAdjacency = hosts => {
     const adj = {};
     hosts.forEach(host => { adj[host] = new Set(); });
     hostPairs.forEach(pair => {
@@ -46,6 +46,11 @@
         adj[pair.to].add(pair.from);
       }
     });
+    return adj;
+  };
+
+  const computeComponents = hosts => {
+    const adj = buildAdjacency(hosts);
     const seen = {};
     const components = [];
     hosts.forEach(host => {
@@ -64,6 +69,12 @@
       }
       components.push(comp);
     });
+    return components;
+  };
+
+  const layoutHosts = (hosts, w, h) => {
+    const adj = buildAdjacency(hosts);
+    const components = computeComponents(hosts);
     const pos = {};
     const cols = Math.ceil(Math.sqrt(components.length));
     const rows = Math.ceil(components.length / cols);
@@ -281,9 +292,13 @@
     let highlightPairs;
 
     if (shiftHeld) {
+      const hosts = [...new Set([currentHost, ...hostPairs.flatMap(pair => [pair.from, pair.to])])];
+      const comps = computeComponents(hosts).map(comp => comp.slice().sort()).sort((a, b) => a[0].localeCompare(b[0]));
+      const compIndex = {};
+      comps.forEach((comp, i) => comp.forEach(host => { compIndex[host] = i; }));
       const dataJson = ("[" + hostPairs
         .slice()
-        .sort((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to))
+        .sort((a, b) => compIndex[a.from] - compIndex[b.from] || a.from.localeCompare(b.from) || a.to.localeCompare(b.to))
         .map(pair => `  { "from": ${JSON.stringify(pair.from)}, "to": ${JSON.stringify(pair.to)} }`)
         .join(",\n") + "]").replace(/&/g, "&amp;").replace(/</g, "&lt;");
       overlay.innerHTML = `
