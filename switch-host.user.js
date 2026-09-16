@@ -96,6 +96,10 @@
   };
 
   const renderHostGraph = (container, currentHost, onSelect) => {
+    if (container._shResizeObserver) {
+      container._shResizeObserver.disconnect();
+      container._shResizeObserver = null;
+    }
     if (!hostPairs.length) {
       container.textContent = "no hosts known yet";
       Object.assign(container.style, { display: "flex", alignItems: "center", justifyContent: "center", color: "#888" });
@@ -178,7 +182,9 @@
     };
 
     build();
-    new ResizeObserver(build).observe(container);
+    const ro = new ResizeObserver(build);
+    ro.observe(container);
+    container._shResizeObserver = ro;
   };
 
   const switchHost = () => {
@@ -288,7 +294,7 @@
         <input type="text" value="${target}" style="padding:8px;border-radius:5px;border:none;width:200px;"/>
         <div style="display:flex;gap:10px;flex:1;width:100%;align-items:stretch;">
           <div class="sh-graph" style="flex:3;min-height:250px;background:#fff;border-radius:5px;"></div>
-          <pre style="flex:2;margin:0;padding:10px;background:#fff;color:#333;font-size:12px;overflow:auto;border-radius:5px;">${dataJson}</pre>
+          <textarea spellcheck="false" wrap="off" style="flex:2;margin:0;padding:10px;background:#fff;color:#333;font-size:12px;font-family:monospace;overflow:auto;border-radius:5px;">${dataJson}</textarea>
         </div>
         <div style="display:flex;gap:10px;margin-top:10px;">
           <button style="padding:8px 16px;background:#4CAF50;color:white;border:none;border-radius:5px;cursor:pointer;">Umstellen</button>
@@ -297,6 +303,23 @@
       `;
       const input = overlay.querySelector("input");
       input.addEventListener("focus", () => input.select());
+      const dataEl = overlay.querySelector("textarea");
+      let renderTimer = 0;
+      dataEl.addEventListener("input", () => {
+        try {
+          const parsed = JSON.parse(dataEl.value.trim());
+          if (!Array.isArray(parsed)) return;
+          hostPairs = parsed
+            .filter(pair => pair && typeof pair === "object")
+            .map(pair => ({ from: stripProtocol(String(pair.from || "")), to: stripProtocol(String(pair.to || "")) }))
+            .filter(pair => pair.from && pair.to);
+        } catch (e) { return; }
+        GM_setValue(STORAGE_KEY, JSON.stringify(hostPairs));
+        clearTimeout(renderTimer);
+        renderTimer = setTimeout(() => {
+          renderHostGraph(overlay.querySelector(".sh-graph"), currentHost, host => { input.value = host; input.focus(); });
+        }, 150);
+      });
       const confirmBtn = overlay.querySelectorAll("button")[0];
       const cancelBtn = overlay.querySelectorAll("button")[1];
       confirmBtn.addEventListener("click", () => {
