@@ -96,10 +96,6 @@
   };
 
   const renderHostGraph = (container, currentHost, onSelect) => {
-    if (container._shResizeObserver) {
-      container._shResizeObserver.disconnect();
-      container._shResizeObserver = null;
-    }
     if (!hostPairs.length) {
       container.textContent = "no hosts known yet";
       Object.assign(container.style, { display: "flex", alignItems: "center", justifyContent: "center", color: "#888" });
@@ -182,9 +178,6 @@
     };
 
     build();
-    const ro = new ResizeObserver(build);
-    ro.observe(container);
-    container._shResizeObserver = ro;
   };
 
   const switchHost = () => {
