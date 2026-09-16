@@ -97,10 +97,11 @@
         const R = Math.max(50, Math.min(cw, ch) / 2 - 35);
         order.forEach((host, i) => {
           const ang = N === 2 ? (i === 0 ? -Math.PI / 2 : Math.PI / 2) : (i / N) * 2 * Math.PI - Math.PI / 2 + Math.PI / 12;
-          pos[host] = { x: cx + R * Math.cos(ang), y: cy + R * Math.sin(ang) };
+          const c = Math.cos(ang), s = Math.sin(ang);
+          pos[host] = { x: cx + R * c, y: cy + R * s, lx: cx + (R + 20) * c, ly: cy + (R + 20) * s + (s > 0.25 ? 6 : 0), anchor: c > 0.25 ? "start" : c < -0.25 ? "end" : "middle" };
         });
       } else {
-        pos[comp[0]] = { x: cx, y: cy };
+        pos[comp[0]] = { x: cx, y: cy, lx: cx, ly: cy + 24, anchor: "middle" };
       }
     });
     return pos;
@@ -175,9 +176,9 @@
         circle.setAttribute("stroke", isCurrent ? "#388E3C" : "#78909C");
         g.appendChild(circle);
         const label = document.createElementNS(NS, "text");
-        label.setAttribute("x", p.x);
-        label.setAttribute("y", p.y + r + 12);
-        label.setAttribute("text-anchor", "middle");
+        label.setAttribute("x", p.lx);
+        label.setAttribute("y", p.ly);
+        label.setAttribute("text-anchor", p.anchor || "middle");
         label.setAttribute("font-size", "10");
         label.setAttribute("fill", "#37474F");
         label.textContent = host;
