@@ -278,7 +278,11 @@
     }
 
     if (shiftHeld) {
-      const dataJson = JSON.stringify(hostPairs, null, 2).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+      const dataJson = ("[" + hostPairs
+        .slice()
+        .sort((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to))
+        .map(pair => `  { "from": ${JSON.stringify(pair.from)}, "to": ${JSON.stringify(pair.to)} }`)
+        .join(",\n") + "]").replace(/&/g, "&amp;").replace(/</g, "&lt;");
       overlay.innerHTML = `
         <div>Switchhost Tool</div>
         <input type="text" value="${target}" style="padding:8px;border-radius:5px;border:none;width:200px;"/>
