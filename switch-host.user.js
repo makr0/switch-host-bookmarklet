@@ -95,7 +95,7 @@
     return pos;
   };
 
-  const renderHostGraph = (container, currentHost, onSelect) => {
+  const renderHostGraph = (container, currentHost, onSelect, onHover) => {
     if (!hostPairs.length) {
       container.textContent = "no hosts known yet";
       Object.assign(container.style, { display: "flex", alignItems: "center", justifyContent: "center", color: "#888" });
@@ -154,6 +154,8 @@
         const g = document.createElementNS(NS, "g");
         g.style.cursor = "pointer";
         g.addEventListener("click", () => onSelect(host));
+        g.addEventListener("mouseenter", () => onHover(host));
+        g.addEventListener("mouseleave", () => onHover(null));
         const circle = document.createElementNS(NS, "circle");
         circle.setAttribute("cx", p.x);
         circle.setAttribute("cy", p.y);
@@ -276,6 +278,8 @@
       Object.assign(overlay.style, { resize: "both", overflow: "hidden", minWidth: "320px", minHeight: "420px" });
     }
 
+    let highlightPairs;
+
     if (shiftHeld) {
       const dataJson = ("[" + hostPairs
         .slice()
@@ -310,9 +314,22 @@
         GM_setValue(STORAGE_KEY, JSON.stringify(hostPairs));
         clearTimeout(renderTimer);
         renderTimer = setTimeout(() => {
-          renderHostGraph(overlay.querySelector(".sh-graph"), currentHost, host => { input.value = host; input.focus(); });
+          renderHostGraph(overlay.querySelector(".sh-graph"), currentHost, host => { input.value = host; input.focus(); }, highlightPairs);
         }, 150);
       });
+      highlightPairs = host => {
+        if (!host) { dataEl.setSelectionRange(0, 0); return; }
+        const needle = '"' + host + '"';
+        let start = -1, end = -1, offset = 0;
+        for (const line of dataEl.value.split("\n")) {
+          if (line.includes(needle)) {
+            if (start < 0) start = offset;
+            end = offset + line.length;
+          }
+          offset += line.length + 1;
+        }
+        if (start >= 0) dataEl.setSelectionRange(start, end);
+      };
       const confirmBtn = overlay.querySelectorAll("button")[0];
       const cancelBtn = overlay.querySelectorAll("button")[1];
       confirmBtn.addEventListener("click", () => {
@@ -346,7 +363,7 @@
       renderHostGraph(overlay.querySelector(".sh-graph"), currentHost, host => {
         input.value = host;
         input.focus();
-      });
+      }, highlightPairs);
     }
   };
 
