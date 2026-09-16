@@ -96,7 +96,7 @@
         const N = order.length;
         const R = Math.max(50, Math.min(cw, ch) / 2 - 35);
         order.forEach((host, i) => {
-          const ang = N === 2 ? (i === 0 ? -Math.PI / 2 : Math.PI / 2) : (i / N) * 2 * Math.PI - Math.PI / 2;
+          const ang = N === 2 ? (i === 0 ? -Math.PI / 2 : Math.PI / 2) : (i / N) * 2 * Math.PI - Math.PI / 2 + Math.PI / 12;
           pos[host] = { x: cx + R * Math.cos(ang), y: cy + R * Math.sin(ang) };
         });
       } else {
