@@ -72,10 +72,7 @@
     components.forEach((comp, ci) => {
       const cx = w / 2 + (ci % cols - (cols - 1) / 2) * cw;
       const cy = h / 2 + (Math.floor(ci / cols) - (rows - 1) / 2) * ch;
-      let degSum = 0;
-      comp.forEach(h => { degSum += adj[h].size; });
-      const isCircular = comp.length > 2 && degSum / 2 >= comp.length;
-      if (isCircular) {
+      if (comp.length >= 2) {
         const order = [];
         const done = {};
         comp.forEach(h => { done[h] = false; });
@@ -88,20 +85,11 @@
         const N = order.length;
         const R = Math.max(50, Math.min(cw, ch) / 2 - 35);
         order.forEach((host, i) => {
-          const ang = (i / N) * 2 * Math.PI - Math.PI / 2;
+          const ang = N === 2 ? (i === 0 ? Math.PI : 0) : (i / N) * 2 * Math.PI - Math.PI / 2;
           pos[host] = { x: cx + R * Math.cos(ang), y: cy + R * Math.sin(ang) };
         });
       } else {
-        const nCols = comp.length <= 4 ? 1 : Math.min(3, Math.ceil(Math.sqrt(comp.length)));
-        const nRows = Math.ceil(comp.length / nCols);
-        const dx = Math.min(95, (cw - 20) / Math.max(nCols - 1, 1));
-        const dy = Math.min(50, (ch - 20) / Math.max(nRows - 1, 1));
-        comp.forEach((host, i) => {
-          pos[host] = {
-            x: cx + (i % nCols - (nCols - 1) / 2) * dx,
-            y: cy + (Math.floor(i / nCols) - (nRows - 1) / 2) * dy
-          };
-        });
+        pos[comp[0]] = { x: cx, y: cy };
       }
     });
     return pos;
@@ -291,7 +279,7 @@
 
     if (shiftHeld) {
       overlay.innerHTML = `
-        <div>Hold umzuschalten zu <b>${target}</b></div>
+        <div>Switchhost Tool</div>
         <input type="text" value="${target}" style="padding:8px;border-radius:5px;border:none;width:200px;"/>
         <div class="sh-graph" style="flex:1;width:100%;min-height:250px;background:#fff;border-radius:5px;"></div>
         <div style="display:flex;gap:10px;margin-top:10px;">
