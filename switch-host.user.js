@@ -278,10 +278,14 @@
     }
 
     if (shiftHeld) {
+      const dataJson = JSON.stringify(hostPairs, null, 2).replace(/&/g, "&amp;").replace(/</g, "&lt;");
       overlay.innerHTML = `
         <div>Switchhost Tool</div>
         <input type="text" value="${target}" style="padding:8px;border-radius:5px;border:none;width:200px;"/>
-        <div class="sh-graph" style="flex:1;width:100%;min-height:250px;background:#fff;border-radius:5px;"></div>
+        <div style="display:flex;gap:10px;flex:1;width:100%;align-items:stretch;">
+          <div class="sh-graph" style="flex:3;min-height:250px;background:#fff;border-radius:5px;"></div>
+          <pre style="flex:2;margin:0;padding:10px;background:#fff;color:#333;font-size:12px;overflow:auto;border-radius:5px;">${dataJson}</pre>
+        </div>
         <div style="display:flex;gap:10px;margin-top:10px;">
           <button style="padding:8px 16px;background:#4CAF50;color:white;border:none;border-radius:5px;cursor:pointer;">Umstellen</button>
           <button style="padding:8px 16px;background:#f44336;color:white;border:none;border-radius:5px;cursor:pointer;">Abbrechen</button>
