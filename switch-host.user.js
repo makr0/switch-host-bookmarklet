@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Switch Host
 // @namespace    switch-host
-// @version      1.1.2
+// @version      1.1.3
 // @description  Switches between old and new host names on the current page. Hold Shift to edit the target.
 // @match        *://*/*
 // @noframes
@@ -113,6 +113,25 @@
   const nodePositions = {};
   let activeSim = null;
 
+  // Node colouring: the current host is green, a click marks a node yellow as the anchor for a
+  // Shift+click connection. The yellow mark lives outside the DOM so re-renders keep it.
+  let markedHost = null;
+  let activeNodeRefs = null;
+  let activeCurrentHost = null;
+
+  const paintNode = (ref, host) => {
+    const isMarked = host === markedHost;
+    const isCurrent = host === activeCurrentHost;
+    ref.circle.setAttribute("r", isCurrent ? 12 : 8);
+    ref.circle.setAttribute("fill", isMarked ? "#FFC107" : isCurrent ? "#4CAF50" : "#B0BEC5");
+    ref.circle.setAttribute("stroke", isMarked ? "#F57F17" : isCurrent ? "#388E3C" : "#78909C");
+  };
+
+  const repaintNodes = () => {
+    if (!activeNodeRefs) return;
+    Object.keys(activeNodeRefs).forEach(host => paintNode(activeNodeRefs[host], host));
+  };
+
   const stopActiveSim = () => {
     if (activeSim) { activeSim.stop(); activeSim = null; }
   };
@@ -129,6 +148,19 @@
       out.push({ from: pair.from, to: pair.to });
     }
     return out;
+  };
+
+  // Serialized pair list for the editor textarea, ordered by component then host names.
+  const formatPairsJson = currentHost => {
+    const hosts = [...new Set([currentHost, ...hostPairs.flatMap(pair => [pair.from, pair.to])])];
+    const comps = computeComponents(hosts).map(comp => comp.slice().sort()).sort((a, b) => a[0].localeCompare(b[0]));
+    const compIndex = {};
+    comps.forEach((comp, i) => comp.forEach(host => { compIndex[host] = i; }));
+    return ("[" + hostPairs
+      .slice()
+      .sort((a, b) => compIndex[a.from] - compIndex[b.from] || a.from.localeCompare(b.from) || a.to.localeCompare(b.to))
+      .map(pair => `  { "from": ${JSON.stringify(pair.from)}, "to": ${JSON.stringify(pair.to)} }`)
+      .join(",\n") + "]").replace(/&/g, "&amp;").replace(/</g, "&lt;");
   };
 
   // Create the SVG for a host graph and position elements from `pos` ({host:{x,y,lx?,ly?,anchor?}}).
@@ -149,14 +181,14 @@
     marker.setAttribute("orient", "auto");
     const arrow = document.createElementNS(NS, "path");
     arrow.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
-    arrow.setAttribute("fill", "#90A4AE");
+    arrow.setAttribute("fill", "#000000");
     marker.appendChild(arrow);
     defs.appendChild(marker);
     svg.appendChild(defs);
 
     const linkRefs = pairs.map(pair => {
       const line = document.createElementNS(NS, "line");
-      line.setAttribute("stroke", "#90A4AE");
+      line.setAttribute("stroke", "#000000");
       line.setAttribute("marker-end", "url(#sh-arrow)");
       svg.appendChild(line);
       return { el: line, from: pair.from, to: pair.to };
@@ -164,16 +196,12 @@
 
     const nodeRefs = {};
     hosts.forEach(host => {
-      const isCurrent = host === currentHost;
       const g = document.createElementNS(NS, "g");
       g.style.cursor = "grab";
-      g.addEventListener("click", () => onSelect(host));
+      g.addEventListener("click", event => onSelect(host, event));
       g.addEventListener("mouseenter", () => onHover(host));
       g.addEventListener("mouseleave", () => onHover(null));
       const circle = document.createElementNS(NS, "circle");
-      circle.setAttribute("r", isCurrent ? 12 : 8);
-      circle.setAttribute("fill", isCurrent ? "#4CAF50" : "#B0BEC5");
-      circle.setAttribute("stroke", isCurrent ? "#388E3C" : "#78909C");
       const label = document.createElementNS(NS, "text");
       label.setAttribute("font-size", "10");
       label.setAttribute("fill", "#37474F");
@@ -187,6 +215,9 @@
       nodeRefs[host] = { g, circle, label };
     });
 
+    activeNodeRefs = nodeRefs;
+    activeCurrentHost = currentHost;
+    hosts.forEach(host => paintNode(nodeRefs[host], host));
     positionGraphDom(linkRefs, nodeRefs, hosts, pos);
     container.replaceChildren(svg);
     return { linkRefs, nodeRefs };
@@ -343,6 +374,7 @@
 
   const renderHostGraph = (container, currentHost, onSelect, onHover) => {
     stopActiveSim(); // always release any previous live simulation before rebuilding
+    activeNodeRefs = null; // buildGraphDom re-registers the nodes it paints
     if (!hostPairs.length) {
       container.textContent = "no hosts known yet";
       Object.assign(container.style, { display: "flex", alignItems: "center", justifyContent: "center", color: "#888" });
@@ -416,6 +448,7 @@
   };
 
   const doSwitch = (shiftHeld) => {
+    markedHost = null; // the yellow connect anchor is scoped to one overlay session
     const currentHost = window.location.host;
     const forward = hostPairs.find(pair => pair.from === currentHost);
     const reverse = forward || hostPairs.find(pair => pair.to === currentHost);
@@ -459,17 +492,10 @@
     }
 
     let highlightPairs;
+    let renderGraph;
 
     if (shiftHeld) {
-      const hosts = [...new Set([currentHost, ...hostPairs.flatMap(pair => [pair.from, pair.to])])];
-      const comps = computeComponents(hosts).map(comp => comp.slice().sort()).sort((a, b) => a[0].localeCompare(b[0]));
-      const compIndex = {};
-      comps.forEach((comp, i) => comp.forEach(host => { compIndex[host] = i; }));
-      const dataJson = ("[" + hostPairs
-        .slice()
-        .sort((a, b) => compIndex[a.from] - compIndex[b.from] || a.from.localeCompare(b.from) || a.to.localeCompare(b.to))
-        .map(pair => `  { "from": ${JSON.stringify(pair.from)}, "to": ${JSON.stringify(pair.to)} }`)
-        .join(",\n") + "]").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+      const dataJson = formatPairsJson(currentHost);
       overlay.innerHTML = `
         <div>Switchhost Tool</div>
         <input type="text" value="${target}" style="padding:8px;border-radius:5px;border:none;width:200px;"/>
@@ -480,12 +506,70 @@
         <div style="display:flex;gap:10px;margin-top:10px;">
           <button style="padding:8px 16px;background:#4CAF50;color:white;border:none;border-radius:5px;cursor:pointer;">Umstellen</button>
           <button style="padding:8px 16px;background:#f44336;color:white;border:none;border-radius:5px;cursor:pointer;">Abbrechen</button>
+          <button style="padding:8px 16px;background:#78909C;color:white;border:none;border-radius:5px;cursor:pointer;display:none;">Rückgängig</button>
         </div>
       `;
       const input = overlay.querySelector("input");
       input.addEventListener("focus", () => input.select());
       const dataEl = overlay.querySelector("textarea");
+      const undoBtn = overlay.querySelectorAll("button")[2];
+      const undoStack = [];
       let renderTimer = 0;
+
+      const refreshUndo = () => { undoBtn.style.display = undoStack.length ? "" : "none"; };
+
+      // Snapshot the pair list before an edit so the Undo button can restore it.
+      const snapshot = () => {
+        undoStack.push(hostPairs.map(pair => ({ from: pair.from, to: pair.to })));
+        if (undoStack.length > 20) undoStack.shift();
+        refreshUndo();
+      };
+
+      const persistPairs = () => { GM_setValue(STORAGE_KEY, JSON.stringify(hostPairs)); };
+
+      renderGraph = () => {
+        renderHostGraph(overlay.querySelector(".sh-graph"), currentHost, onNodeClick, highlightPairs);
+      };
+
+      // Shift+click while a node is yellow: connect the two hosts and drop the yellow mark.
+      // Without an anchor (or on the anchor itself) Shift behaves like a normal click.
+      const connectHosts = (anchor, other) => {
+        const exists = hostPairs.some(pair =>
+          (pair.from === anchor && pair.to === other) || (pair.from === other && pair.to === anchor));
+        if (!exists) {
+          snapshot();
+          hostPairs.push({ from: anchor, to: other });
+          persistPairs();
+        }
+        markedHost = null;
+        dataEl.value = formatPairsJson(currentHost);
+        renderGraph();
+      };
+
+      const onNodeClick = (host, event) => {
+        if (event && event.shiftKey && markedHost && markedHost !== host) {
+          connectHosts(markedHost, host);
+          return;
+        }
+        markedHost = markedHost === host ? null : host; // clicking the yellow node again unmarks it
+        repaintNodes();
+        input.value = host;
+        input.focus();
+      };
+
+      const undo = () => {
+        const previous = undoStack.pop();
+        if (!previous) return;
+        hostPairs = previous;
+        markedHost = null;
+        persistPairs();
+        dataEl.value = formatPairsJson(currentHost);
+        refreshUndo();
+        renderGraph();
+      };
+
+      undoBtn.addEventListener("click", undo);
+
       dataEl.addEventListener("input", () => {
         try {
           const parsed = JSON.parse(dataEl.value.trim());
@@ -495,11 +579,11 @@
             .map(pair => ({ from: stripProtocol(String(pair.from || "")), to: stripProtocol(String(pair.to || "")) }))
             .filter(pair => pair.from && pair.to);
         } catch (e) { return; }
-        GM_setValue(STORAGE_KEY, JSON.stringify(hostPairs));
+        undoStack.length = 0; // manual edits make the connection history meaningless
+        refreshUndo();
+        persistPairs();
         clearTimeout(renderTimer);
-        renderTimer = setTimeout(() => {
-          renderHostGraph(overlay.querySelector(".sh-graph"), currentHost, host => { input.value = host; input.focus(); }, highlightPairs);
-        }, 150);
+        renderTimer = setTimeout(renderGraph, 150);
       });
       highlightPairs = host => {
         if (!host) { dataEl.setSelectionRange(0, 0); return; }
@@ -522,7 +606,7 @@
         if (!hostPairs.some(pair => pair.from === currentHost && pair.to === newTarget)) {
           hostPairs.push({ from: currentHost, to: newTarget });
         }
-        GM_setValue(STORAGE_KEY, JSON.stringify(hostPairs));
+        persistPairs();
         window.location.href =
           window.location.protocol + "//" + newTarget +
           window.location.pathname + window.location.search + window.location.hash;
@@ -544,10 +628,8 @@
     if (shiftHeld) {
       const input = overlay.querySelector("input");
       input.focus();
-      renderHostGraph(overlay.querySelector(".sh-graph"), currentHost, host => {
-        input.value = host;
-        input.focus();
-      }, highlightPairs);
+      markedHost = null;
+      renderGraph();
     }
   };
 
